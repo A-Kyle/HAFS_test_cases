@@ -69,7 +69,7 @@ module test_init_mod
   !     <td>DGRID_NE</td>
   !   </tr>
   !   <tr>
-  !     <td>test_multi_vtx</td>
+  !     <td>multi_vtx_mod</td>
   !     <td>intern_init_multi_vtx, init_multi_vtx, ic_multi_vtx</td>
   !   </tr>
   ! </table>
@@ -83,7 +83,8 @@ module test_init_mod
   use fv_grid_utils_mod,  only: g_sum, ptop_min
   use init_hydro_mod,     only: p_var
   use mpp_parameter_mod,  only: DGRID_NE
-  use test_multi_vtx,     only: intern_init_multi_vtx, init_multi_vtx, ic_multi_vtx
+
+  use multi_vtx_mod,      only: intern_init_multi_vtx, init_multi_vtx, ic_multi_vtx
 
   implicit none
   private
@@ -96,7 +97,6 @@ contains
   subroutine intern_init_test()
     implicit none
     integer :: ierr
-    if(is_master()) write(*,*) '[KA] (test_init) enter intern_init_test subroutine'
     ! rewind(f_unit)
 
     select case(selected_case)
@@ -112,10 +112,8 @@ contains
       ! case(case_list%POLAR_VTX)
 
       case(CASE_MULTI_VTX)
-        if(is_master()) write(*,*) '[KA] (test_init, intern_...) in CASE_MULTI_VTX block'
         ierr = intern_init_multi_vtx()
     end select
-    if(is_master()) write(*,*) '[KA] (test_init) exit intern_init_test subroutine'
 
   end subroutine intern_init_test
 
@@ -125,8 +123,6 @@ contains
     implicit none
     integer, intent(in) :: f_unit
     integer :: ierr
-
-    if(is_master()) write(*,*) '[KA] (test_init) enter init_test subroutine'
 
     rewind(f_unit)
 
@@ -143,10 +139,8 @@ contains
       ! case(case_list%POLAR_VTX)
 
       case(CASE_MULTI_VTX)
-        if(is_master()) write(*,*) '[KA] (test_init, init_test) in CASE_MULTI_VTX block'
         ierr = init_multi_vtx(f_unit)
     end select
-    if(is_master()) write(*,*) '[KA] (test_init) exit init_test subroutine'
 
   end subroutine init_test
 
@@ -195,8 +189,6 @@ contains
     integer :: i, j
     real :: ftop
 
-    if(is_master()) write(*,*) '[KA] (test_init) enter ic_test subroutine'
-
     grid          => gridstruct%grid_64
     agrid         => gridstruct%agrid_64
     area          => gridstruct%area_64
@@ -231,6 +223,8 @@ contains
     delp(ie+1:ied,jsd:js-1,1:npz)=0.0
     delp(ie+1:ied,je+1:jed,1:npz)=0.0
 
+    ! Initialize the model state according to the specified
+    ! test case.
     select case(selected_case)
       ! case(CASE_DIV)
       ! case(CASE_NL_DEFORM)
@@ -244,7 +238,6 @@ contains
       ! case(CASE_POLAR_VTX)
 
       case(CASE_MULTI_VTX)
-        if(is_master()) write(*,*) '[KA] (test_init, ic_test) in CASE_MULTI_VTX block'
         call ic_multi_vtx(u, v, w, pt, delp, delz, q, &
                                 pk, peln, pe, pkz, phis, ps, &
                                 ak, bk, gridstruct, domain)
@@ -257,14 +250,13 @@ contains
 
     ! The flow is initially hydrostatic
 #ifndef SUPER_K
-    if(is_master()) write(*,*) '[KA] (test_init, ic_test) in SUPER_K block'
     call p_var(npz, is, ie, js, je, ptop, ptop_min, delp, delz, pt, ps,   &
                pe, peln, pk, pkz, kappa, q, ng, ncnst, area, dry_mass, .false., mountain, &
                moist_phys, hydrostatic, nwat, domain, .not.hydrostatic)
 #endif
 
 #ifdef COLUMN_TRACER
-    if(is_master()) write(*,*) '[KA] (test_init, ic_test) in COLUMN_TRACER block'
+
 #endif
 
     call mpp_update_domains(u, v, domain, gridtype=DGRID_NE, complete=.true.)
@@ -276,7 +268,6 @@ contains
     nullify(f0)
     nullify(cubed_sphere)
 
-    if(is_master()) write(*,*) '[KA] (test_init) exit ic_test subroutine'
   end subroutine ic_test
 
 end module test_init_mod

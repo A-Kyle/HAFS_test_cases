@@ -19,9 +19,9 @@
 !* If not, see <http://www.gnu.org/licenses/>.
 !***********************************************************************
 
-module test_multi_vtx
+module multi_vtx_mod
   !-------------------------------------------------------------------------------
-  !>@brief The module 'test_multi_vtx' contains members related to
+  !>@brief The module 'multi_vtx_mod' contains members related to
   !! the idealized simulation of warm-core vortices (tropical cyclones, TCs).
   !>@details This module includes public routines that read the test-case
   !! namelist, and establish the initial state of the model. Options regarding
@@ -163,8 +163,6 @@ contains
       lapse_rate, &
       z_trop, z_p, z_conv
 
-    if(is_master()) write(*,*) '[KA] (multi_vortex) enter intern_init_multi_vtx'
-
     ! Default settings
     num_vortex = 0
     aqua       = .true.
@@ -188,23 +186,23 @@ contains
     intern_init_multi_vtx = check_nml_error(ios,'test_case_nml')
 
     if(is_master()) then
-      write(*,*) '[KA] (multi_vortex,init) num_vortex=',num_vortex
-      write(*,*) '[KA] (multi_vortex,init) aqua=',aqua
-      write(*,*) '[KA] (multi_vortex,init) lon=',lon
-      write(*,*) '[KA] (multi_vortex,init) lat=',lat
-      write(*,*) '[KA] (multi_vortex,init) dp=',dp
-      write(*,*) '[KA] (multi_vortex,init) rsize=',rsize
-      write(*,*) '[KA] (multi_vortex,init) z_q1=',z_q1
-      write(*,*) '[KA] (multi_vortex,init) z_q2=',z_q2
-      write(*,*) '[KA] (multi_vortex,init) q_0=',q_0
-      write(*,*) '[KA] (multi_vortex,init) q_trop=',q_trop
-      write(*,*) '[KA] (multi_vortex,init) T_0=',T_0
-      write(*,*) '[KA] (multi_vortex,init) lapse_rate=',lapse_rate
-      write(*,*) '[KA] (multi_vortex,init) p_0=',p_0
-      write(*,*) '[KA] (multi_vortex,init) z_trop=',z_trop
-      write(*,*) '[KA] (multi_vortex,init) z_p=',z_p
-      write(*,*) '[KA] (multi_vortex,init) z_conv=',z_conv
-      write(*,*) '[KA] (multi_vortex) exit intern_init_multi_vtx=',intern_init_multi_vtx
+      write(*,*) '(multi_vortex,init) num_vortex=',num_vortex
+      write(*,*) '(multi_vortex,init) aqua=',aqua
+      write(*,*) '(multi_vortex,init) lon=',lon
+      write(*,*) '(multi_vortex,init) lat=',lat
+      write(*,*) '(multi_vortex,init) dp=',dp
+      write(*,*) '(multi_vortex,init) rsize=',rsize
+      write(*,*) '(multi_vortex,init) z_q1=',z_q1
+      write(*,*) '(multi_vortex,init) z_q2=',z_q2
+      write(*,*) '(multi_vortex,init) q_0=',q_0
+      write(*,*) '(multi_vortex,init) q_trop=',q_trop
+      write(*,*) '(multi_vortex,init) T_0=',T_0
+      write(*,*) '(multi_vortex,init) lapse_rate=',lapse_rate
+      write(*,*) '(multi_vortex,init) p_0=',p_0
+      write(*,*) '(multi_vortex,init) z_trop=',z_trop
+      write(*,*) '(multi_vortex,init) z_p=',z_p
+      write(*,*) '(multi_vortex,init) z_conv=',z_conv
+      write(*,*) '(multi_vortex) exit intern_init_multi_vtx=',intern_init_multi_vtx
     endif
 
   end function intern_init_multi_vtx
@@ -250,6 +248,26 @@ contains
     ! Read user-defined values in namelist (specified values replace default)
     read(f_unit,test_case_nml,iostat=ios)
     init_multi_vtx = check_nml_error(ios,'test_case_nml')
+
+    if(is_master()) then
+      write(*,*) '(multi_vortex,init) num_vortex=',num_vortex
+      write(*,*) '(multi_vortex,init) aqua=',aqua
+      write(*,*) '(multi_vortex,init) lon=',lon
+      write(*,*) '(multi_vortex,init) lat=',lat
+      write(*,*) '(multi_vortex,init) dp=',dp
+      write(*,*) '(multi_vortex,init) rsize=',rsize
+      write(*,*) '(multi_vortex,init) z_q1=',z_q1
+      write(*,*) '(multi_vortex,init) z_q2=',z_q2
+      write(*,*) '(multi_vortex,init) q_0=',q_0
+      write(*,*) '(multi_vortex,init) q_trop=',q_trop
+      write(*,*) '(multi_vortex,init) T_0=',T_0
+      write(*,*) '(multi_vortex,init) lapse_rate=',lapse_rate
+      write(*,*) '(multi_vortex,init) p_0=',p_0
+      write(*,*) '(multi_vortex,init) z_trop=',z_trop
+      write(*,*) '(multi_vortex,init) z_p=',z_p
+      write(*,*) '(multi_vortex,init) z_conv=',z_conv
+      write(*,*) '(multi_vortex) exit intern_init_multi_vtx=',intern_init_multi_vtx
+    endif
 
   end function init_multi_vtx
 
@@ -419,9 +437,6 @@ contains
             else
               ps(i,j) = p_0 - dp(n)*EXP( -SQRT((rc(n,i,j)/rsize(n))**3) )
             endif
-            if ((i.EQ.1) .AND. (j.EQ.1)) then
-              write(*,*) '[KA] (calc_ps) ps=',ps(i,j),'n=',n,'W=',weight(n,i,j)
-            endif
           enddo
         enddo
       enddo
@@ -470,7 +485,6 @@ contains
       enddo
     endif
 
-    ! Note: Still parsing how this block physically works.
     if (calc_height) then
       ! Height: Use Newton's method
       ! Cell centered
@@ -493,43 +507,8 @@ contains
                 titer = TC_temperature(ziter, rc(n,i,j), dp(n), rsize(n))
                 z = ziter + (piter - p)*rdgrav*titer/piter
 
-                if (.NOT. has_warned) then
-                  if (z > 100000.0 .OR. z < 0.0) then
-                    write(*,*) '[KA] (calc_hgt) Bad z value ...'
-                    write(*,*) '[KA] (calc_hgt) z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-                    has_warned = .true.
-                  endif
-                  if (piter > 1000000.0 .OR. piter < 0.0) then
-                    write(*,*) '[KA] (calc_hgt) Bad piter value ...'
-                    write(*,*) '[KA] (calc_hgt) pi=',piter,'z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-                    has_warned = .true.
-                  endif
-                  if (ziter > 100000.0 .OR. ziter < 0.0) then
-                    write(*,*) '[KA] (calc_hgt) Bad ziter value ...'
-                    write(*,*) '[KA] (calc_hgt) zi=',ziter,'z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-                    has_warned = .true.
-                  endif
-                  if (titer > 400.0 .OR. titer < 100.0) then
-                    write(*,*) '[KA] (calc_hgt) Bad titer value ...'
-                    write(*,*) '[KA] (calc_hgt) ti=',titer,'z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-                    has_warned = .true.
-                  endif
-                  if (p > 1000000.0 .OR. p < 0.0) then
-                    write(*,*) '[KA] (calc_hgt) Bad p value ...'
-                    write(*,*) '[KA] (calc_hgt) p=',p,'z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-                    has_warned = .true.
-                  endif
-                  if (has_warned) then
-                    write(*,*) '[KA] (calc_hgt) z=',z,'zi=',ziter,'p=',p,'pi=',piter,'ti=',titer
-                    write(*,*) '[KA] (calc_hgt) iter=',iter
-                  endif
-                endif
-
                 if (ABS(z - ziter) < z_conv) exit
               enddo
-              !if ((i.EQ.1) .AND. (j.EQ.1)) then
-              !  write(*,*) '[KA] (calc_hgt) z=',z,'n=',n,'i=',i,'j=',j,'k=',k
-              !endif
               if (num_vortex > 1) then
                 if (n .EQ. 1) then
                   gz(i,j,k) = weight(n,i,j) * z
@@ -559,7 +538,6 @@ contains
       enddo
     endif
 
-    ! Note: Still parsing how this block physically works.
     if (calc_uv) then
       ! Compute height and temperature for grids with u and v points also,
       ! to be able to compute the local winds...
@@ -812,7 +790,6 @@ contains
       Tvrd = (Tv0 - lapse_rate*z)*rdgas
 
       exp_term = rfac + (z/z_p)**2
-      ! write(*,*) '[KA] (multi_vortex,tc_uwind) exp_term=',exp_term
 
       if (exp_term < max_exp) then
         vt = -fr5 + SQRT( fr5**2 - (1.5 * rfac * Tvrd) / &
@@ -844,4 +821,4 @@ contains
 
   end subroutine ic_multi_vtx
 
-end module test_multi_vtx
+end module multi_vtx_mod
