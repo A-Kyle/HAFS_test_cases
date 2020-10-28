@@ -76,8 +76,8 @@ rc = read(file); lin = sublin(rc,2); _p0 = subwrd(lin,3);
 
 ********************************************************
 
-*'u = lev * 0'
-*'d u'
+'u = lev * 0'
+'v = lev * 0'
 
 * i=0
 *while (i<_N)
