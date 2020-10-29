@@ -266,7 +266,7 @@ contains
       write(*,*) '(multi_vortex,init) z_trop=',z_trop
       write(*,*) '(multi_vortex,init) z_p=',z_p
       write(*,*) '(multi_vortex,init) z_conv=',z_conv
-      write(*,*) '(multi_vortex) exit intern_init_multi_vtx=',intern_init_multi_vtx
+      write(*,*) '(multi_vortex) exit init_multi_vtx=',init_multi_vtx
     endif
 
   end function init_multi_vtx
