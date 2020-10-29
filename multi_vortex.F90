@@ -792,7 +792,7 @@ contains
       exp_term = rfac + (z/z_p)**2
 
       if (exp_term < max_exp) then
-        vt = -fr5 + SQRT( fr5**2 - (1.5 * rfac * Tvrd) / &
+        vt = -fr5 + SIGN(1.0,c_lat) * SQRT( fr5**2 - (1.5 * rfac * Tvrd) / &
              ( 1. + 2.*Tvrd*z/(grav*z_p**2) - (p_0/dp)*EXP(exp_term) ) )
       else
         vt = 0.
