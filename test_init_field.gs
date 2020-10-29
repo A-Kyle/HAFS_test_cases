@@ -118,12 +118,18 @@ endwhile
 'u = lev*0'
 'v = lev*0'
 i=0; while (i<_N)
+  if (_lat.i < 0.0)
+    'rsgn=-1'
+  else
+    'rsgn=1'
+  endif
+
   'f = 2 * 7.292 * pow(10,-5) * sin('_lat.i'*'_PI'/180.0)'
   'terma = - f * r'i' * 1000.0 / 2.0'
   'termb = f * f * (r'i' * 1000.0) * (r'i' * 1000.0) / 4.0'
   'termc = (3/2) * Tsfc * 287.15 * POW(r'i'/'_rsize.i',3/2)'
   'termd = 1.0 - ( ('_p0'/'_dp.i') * EXP(POW(r'i'/'_rsize.i',3/2)) )'
-  'vgrad'i' = terma + SQRT(termb - (termc / termd))'
+  'vgrad'i' = terma + rsgn * SQRT(termb - (termc / termd))'
 
 * convert vgrad to u, v components using DCMIP-2016's method
   'd1 = sin('_lat.i'*'_PI'/180.0)*cos(lat*'_PI'/180.0) - cos('_lat.i'*'_PI'/180.0)*sin(lat*'_PI'/180.0)*cos((lon-'_lon.i')*('_PI'/180.0))'
