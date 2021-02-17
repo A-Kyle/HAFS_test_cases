@@ -35,11 +35,11 @@ module test_control_mod
   !   </tr>
   !   <tr>
   !     <td>fv_arrays_mod</td>
-  !     <td>fv_flags_type, fv_grid_bounds_type</td>
+  !     <td>fv_grid_type, fv_flags_type, fv_grid_bounds_type</td>
   !   </tr>
   ! </table>
 
-  use fv_arrays_mod, only: fv_flags_type, fv_grid_bounds_type
+  use fv_arrays_mod, only: fv_grid_type, fv_flags_type, fv_grid_bounds_type
 
   implicit none
   integer :: selected_case = 0
@@ -56,6 +56,7 @@ module test_control_mod
   integer, parameter :: CASE_BT_INSTAB = 8   !< Barotropic instability
   integer, parameter :: CASE_SOLITON   = 9   !< Soliton propagation
   integer, parameter :: CASE_POLAR_VTX = 10  !< Polar vortex
+  integer, parameter :: CASE_IDEAL_MTN = 11  !< Hydrostatic balanced state with a mountain
   ! etc. ...
   integer, parameter :: CASE_MULTI_VTX = 99
 
@@ -63,6 +64,8 @@ module test_control_mod
   !< Note: no idea what "ng" is
   public  :: set_test_hgrid
   integer :: is, ie, js, je, isd, ied, jsd, jed, npx, npy, ng
+  logical :: bounded
+  integer :: is2, ie2, js2, je2
 
   public  :: set_test_vgrid
   integer :: npz
@@ -85,11 +88,13 @@ contains
   !>@brief set_test_hgrid stores information for the working horizontal grid.
   !>@details This routine stores information from this PE's working
   !!         horizontal grid, which is then used by ideal case subroutines.
-  subroutine set_test_hgrid(bounds, num_x, num_y, n_g)
+  subroutine set_test_hgrid(gridstruct, bounds, num_x, num_y, n_g)
     implicit none
+    type(fv_grid_type), intent(in) :: gridstruct
     type(fv_grid_bounds_type), intent(in) :: bounds
     integer, intent(in) :: num_x, num_y
     integer, intent(in) :: n_g
+    bounded = gridstruct%bounded_domain
     is  = bounds%is
     ie  = bounds%ie
     js  = bounds%js
@@ -101,6 +106,19 @@ contains
     npx = num_x
     npy = num_y
     ng  = n_g !< what is this variable?
+
+    if (bounded) then
+      is2 = isd
+      ie2 = ied
+      js2 = jsd
+      je2 = jed
+    else
+      is2 = is
+      ie2 = ie
+      js2 = js
+      je2 = je
+    endif
+
   end subroutine set_test_hgrid
 
   !-------------------------------------------------------------------------------

@@ -138,11 +138,83 @@ module multi_vtx_mod
   ! ---Routines--- !
   !----------------!
 
+  public  :: read_multi_vtx
   public  :: intern_init_multi_vtx
   public  :: init_multi_vtx
   public  :: ic_multi_vtx
 
 contains
+
+  !-------------------------------------------------------------------------------
+  !>@brief intern_nit_multi_vtx reads an internal namelist to set case settings.
+  !>@details The case's namelist is declared and its members are initialized with
+  !!         default values. The FV3 input namelist file is read, which overwrites
+  !!         default settings. This allows user-friendly modifications to the
+  !!         simulation parameters without necessitating recompilation.
+  subroutine read_multi_vtx(fname)
+    implicit none
+    character(*), intent(in) :: fname
+    integer :: ierr, f_unit, ios
+
+    namelist /test_case_nml/ &
+      num_vortex, aqua, &
+      lon, lat, &
+      p_0, dp, rsize, &
+      q_0, z_q1, z_q2, q_trop, &
+      T_0, &
+      lapse_rate, &
+      z_trop, z_p, z_conv
+
+    ! Default settings
+    num_vortex = 0
+    aqua       = .true.
+    lon(:)     = 0.
+    lat(:)     = 0.
+    dp(:)      = 1115.
+    rsize(:)   = 282000.
+    z_q1       = 3000.
+    z_q2       = 8000.
+    q_0        = 0.021
+    q_trop     = 1.e-11
+    T_0        = 302.15
+    lapse_rate = 7.e-3
+    p_0        = 101500.
+    z_trop     = 15000.
+    z_p        = 7000.
+    z_conv     = 1.e-6
+
+    ! Read user-defined values in namelist (specified values replace default)
+#ifdef INTERNAL_FILE_NML
+    read(input_nml_file,test_case_nml,iostat=ios)
+    ierr = check_nml_error(ios,'test_case_nml')
+#else
+    f_unit = open_namelist_file(fname)
+    rewind(f_unit)
+    read(f_unit,test_case_nml,iostat=ios)
+    ierr = check_nml_error(ios,'test_case_nml')
+    call close_file(f_unit)
+#endif
+
+    if(is_master()) then
+      write(*,*) '(multi_vortex,read) num_vortex=',num_vortex
+      write(*,*) '(multi_vortex,read) aqua=',aqua
+      write(*,*) '(multi_vortex,read) lon=',lon
+      write(*,*) '(multi_vortex,read) lat=',lat
+      write(*,*) '(multi_vortex,read) dp=',dp
+      write(*,*) '(multi_vortex,read) rsize=',rsize
+      write(*,*) '(multi_vortex,read) z_q1=',z_q1
+      write(*,*) '(multi_vortex,read) z_q2=',z_q2
+      write(*,*) '(multi_vortex,read) q_0=',q_0
+      write(*,*) '(multi_vortex,read) q_trop=',q_trop
+      write(*,*) '(multi_vortex,read) T_0=',T_0
+      write(*,*) '(multi_vortex,read) lapse_rate=',lapse_rate
+      write(*,*) '(multi_vortex,read) p_0=',p_0
+      write(*,*) '(multi_vortex,read) z_trop=',z_trop
+      write(*,*) '(multi_vortex,read) z_p=',z_p
+      write(*,*) '(multi_vortex,read) z_conv=',z_conv
+    endif
+
+  end subroutine read_multi_vtx
 
   !-------------------------------------------------------------------------------
   !>@brief intern_nit_multi_vtx reads an internal namelist to set case settings.
@@ -266,7 +338,7 @@ contains
       write(*,*) '(multi_vortex,init) z_trop=',z_trop
       write(*,*) '(multi_vortex,init) z_p=',z_p
       write(*,*) '(multi_vortex,init) z_conv=',z_conv
-      write(*,*) '(multi_vortex) exit intern_init_multi_vtx=',intern_init_multi_vtx
+      write(*,*) '(multi_vortex) exit init_multi_vtx=',init_multi_vtx
     endif
 
   end function init_multi_vtx
@@ -286,7 +358,9 @@ contains
 
     real, intent(OUT), dimension(isd:ied,jsd:jed+1,npz) :: u  !< abscissa-sided
     real, intent(OUT), dimension(isd:ied+1,jsd:jed,npz) :: v  !< ordinate-sided
-    real, intent(OUT), dimension(isd:ied,jsd:jed,npz)   :: w, pt, delp, delz  !< cell-centered
+    real, intent(OUT), dimension(isd:ied,jsd:jed,npz)   :: w, pt, delp !, delz  !< cell-centered
+    real, intent(INOUT), dimension(is:,js:,1:) :: delz
+    !real, intent(INOUT), dimension(is:ie,js:je,1:npz) :: delz
     real, intent(INOUT), dimension(isd:ied,jsd:jed,npz,ncnst) :: q !< cell-centered, dim-4 for species
 
     real, intent(OUT), dimension(is:ie,js:je,npz+1) :: pk
@@ -308,36 +382,36 @@ contains
 
     real, dimension(isd:ied,jsd:jed,npz+1) :: gz      !< geopotential height (m)
 
-    real, dimension(num_vortex,is:ie,js:je) :: rc     !< distance from the vortex center
+    real, dimension(num_vortex,isd:ied,jsd:jed) :: rc     !< distance from the vortex center
     real :: rc_total                                  !< sum of all rc from all vortices
     real(kind=R_GRID), dimension(2) :: vortcenter     !< working vortex coordinates
-    real, dimension(num_vortex,is:ie,js:je) :: num_weight !< 1 / (r_n)^p
-    real, dimension(is:ie,js:je)            :: den_weight !< SUM[1 / (r_n)^p]
-    real, dimension(num_vortex,is:ie,js:je) :: weight !< num_weight / den_weight
-
+    real, dimension(num_vortex,isd:ied,jsd:jed) :: num_weight !< 1 / (r_n)^p
+    real, dimension(isd:ied,jsd:jed)            :: den_weight !< SUM[1 / (r_n)^p]
+    real, dimension(num_vortex,isd:ied,jsd:jed) :: weight !< num_weight / den_weight
 
     integer :: i,j,k,n
     integer :: iter
     integer :: sphum !< specific humidity tracer index
 
     real :: p, pl, z, z0        !< working variables for pressure, log-p, gz
+    real :: p_lower, p_upper
     real :: ziter, piter, titer !< iterative terms
     real :: uu, vv
 
     real(kind=R_GRID), dimension(2) :: pa
     real(kind=R_GRID), dimension(3) :: e1, e2, ex, ey
 
-    real, dimension(num_vortex,is:ie,js:je+1) :: num_weight_u
-    real, dimension(is:ie,js:je+1)            :: den_weight_u
-    real, dimension(num_vortex,is:ie,js:je+1) :: rc_u, weight_u
-    real, dimension(is:ie,js:je+1) :: gz_u, p_u, peln_u, ps_u, u1, u2
-    real(kind=R_GRID), dimension(is:ie,js:je+1) :: lat_u, lon_u
+    real, dimension(num_vortex,isd:ied,jsd:jed+1) :: num_weight_u
+    real, dimension(isd:ied,jsd:jed+1)            :: den_weight_u
+    real, dimension(num_vortex,isd:ied,jsd:jed+1) :: rc_u, weight_u
+    real, dimension(isd:ied,jsd:jed+1) :: gz_u, p_u, peln_u, ps_u, u1, u2
+    real(kind=R_GRID), dimension(isd:ied,jsd:jed+1) :: lat_u, lon_u
 
-    real, dimension(num_vortex,is:ie+1,js:je) :: num_weight_v
-    real, dimension(is:ie+1,js:je)            :: den_weight_v
-    real, dimension(num_vortex,is:ie+1,js:je) :: rc_v, weight_v
-    real, dimension(is:ie+1,js:je) :: gz_v, p_v, peln_v, ps_v, v1, v2
-    real(kind=R_GRID), dimension(is:ie+1,js:je) :: lat_v, lon_v
+    real, dimension(num_vortex,isd:ied+1,jsd:jed) :: num_weight_v
+    real, dimension(isd:ied+1,jsd:jed)            :: den_weight_v
+    real, dimension(num_vortex,isd:ied+1,jsd:jed) :: rc_v, weight_v
+    real, dimension(isd:ied+1,jsd:jed) :: gz_v, p_v, peln_v, ps_v, v1, v2
+    real(kind=R_GRID), dimension(isd:ied+1,jsd:jed) :: lat_v, lon_v
 
     ! These members are for debugging
     logical, parameter :: calc_rc = .true.
@@ -404,8 +478,8 @@ contains
 
     if (calc_rc) then
       ! Calculate r and distance-weighting to use if num_vortex > 1
-      do j=js,je
-        do i=is,ie
+      do j=js2,je2
+        do i=is2,ie2
           do n=1,num_vortex
             vortcenter = (/ lon(n) * pi / 180.0, lat(n) * pi / 180.0 /)
             rc(n,i,j) = great_circle_dist(agrid(i,j,:), vortcenter, earth_r)
@@ -425,8 +499,8 @@ contains
 
     if (calc_ps) then
       ! Calculate surface pressure
-      do j=js,je
-        do i=is,ie
+      do j=js2,je2
+        do i=is2,ie2
           do n=1,num_vortex
             if (num_vortex > 1) then
               if (n .EQ. 1) then
@@ -445,8 +519,8 @@ contains
     if (calc_delp) then
       ! Calculate layer thicknesses in pressure
       do k=1,npz
-        do j=js,je
-          do i=is,ie
+        do j=js2,je2
+          do i=is2,ie2
             delp(i,j,k) = ak(k+1)-ak(k) + ps(i,j)*(bk(k+1)-bk(k))
           enddo
         enddo
@@ -488,18 +562,23 @@ contains
     if (calc_height) then
       ! Height: Use Newton's method
       ! Cell centered
-      do j=js,je
-        do i=is,ie
+      do j=js2,je2
+        do i=is2,ie2
           phis(i,j) = 0.
           gz(i,j,npz+1) = 0.
         enddo
       enddo
       do k=npz,1,-1
-        do j=js,je
-          do i=is,ie
+        do j=js2,je2
+          do i=is2,ie2
             has_warned = .false.
             do n=1,num_vortex
-              p = pe(i,k,j)
+              ! p = pe(i,k,j)
+              if (k .EQ. 1) then
+                p = ptop
+              else
+                p = ak(k) + ps(i,j)*bk(k)
+              endif
               z = gz(i,j,k+1)
               do iter=1,30
                 ziter = z
@@ -527,9 +606,18 @@ contains
     if (calc_t) then
       ! Potential Temperature: Compute from hydro balance
       do k=1,npz
-        do j=js,je
-          do i=is,ie
-            pt(i,j,k) = rrdgrav * ( gz(i,j,k) - gz(i,j,k+1) ) / ( peln(i,k+1,j) - peln(i,k,j))
+        do j=js2,je2
+          do i=is2,ie2
+!            pt(i,j,k) = rrdgrav * ( gz(i,j,k) - gz(i,j,k+1) ) / ( peln(i,k+1,j) - peln(i,k,j))
+
+            if (k .EQ. 1) then
+              p_upper = LOG(ptop)
+            else
+              p_upper = LOG(ak(k) + ps(i,j)*bk(k))
+            endif
+            p_lower = LOG(ak(k+1) + ps(i,j)*bk(k+1))
+
+            pt(i,j,k) = rrdgrav * ( gz(i,j,k) - gz(i,j,k+1) ) / (p_lower - p_upper)
             if ((i.EQ.1) .AND. (j.EQ.1)) then
               write(*,*) '[KA] (calc_t) gz=',gz(i,j,k),'k=',k,'T=',pt(i,j,k)
             endif
@@ -542,8 +630,8 @@ contains
       ! Compute height and temperature for grids with u and v points also,
       ! to be able to compute the local winds...
       ! Use temporary 2d arrays for this purpose
-      do j=js,je+1
-        do i=is,ie
+      do j=js2,je2+1
+        do i=is2,ie2
           call mid_pt_sphere(grid(i,j,:),grid(i+1,j,:),pa)
           lat_u(i,j) = pa(2)
           lon_u(i,j) = pa(1)
@@ -569,8 +657,8 @@ contains
 
       do n=1,num_vortex
         vortcenter = (/ lon(n) * pi / 180.0, lat(n) * pi / 180.0 /)
-        do j=js,je+1
-          do i=is,ie
+        do j=js2,je2+1
+          do i=is2,ie2
             p_u(i,j) = p_0 - dp(n) * EXP( -SQRT((rc_u(n,i,j)/rsize(n))**3) )
             peln_u(i,j) = LOG(p_u(i,j))
             ps_u(i,j) = p_u(i,j)
@@ -606,8 +694,8 @@ contains
         enddo
       enddo
 
-      do j=js,je
-        do i=is,ie+1
+      do j=js2,je2
+        do i=is2,ie2+1
           call mid_pt_sphere(grid(i,j,:),grid(i,j+1,:),pa)
           lat_v(i,j) = pa(2)
           lon_v(i,j) = pa(1)
@@ -633,8 +721,8 @@ contains
 
       do n=1,num_vortex
         vortcenter = (/ lon(n) * pi / 180.0, lat(n) * pi / 180.0 /)
-        do j=js,je
-          do i=is,ie+1
+        do j=js2,je2
+          do i=is2,ie2+1
             p_v(i,j) = p_0 - dp(n)*EXP( -SQRT((rc_v(n,i,j)/rsize(n))**3) )
             peln_v(i,j) = LOG(p_v(i,j))
             ps_v(i,j) = p_v(i,j)
@@ -674,8 +762,8 @@ contains
       ! Compute moisture and other tracer fields, as desired
       do n=1,ncnst
         do k=1,npz
-          do j=jsd,jed
-            do i=isd,ied
+          do j=js2,je2
+            do i=is2,ie2
               q(i,j,k,n) = 0.
             enddo
           enddo
@@ -684,8 +772,8 @@ contains
       if (.not. adiabatic) then
         sphum = get_tracer_index(MODEL_ATMOS, 'sphum')
         do k=1,npz
-          do j=js,je
-            do i=is,ie
+          do j=js2,je2
+            do i=is2,ie2
               z = 0.5*(gz(i,j,k) + gz(i,j,k+1))
               q(i,j,k,sphum) = TC_sphum(z, z_q1, z_q2)
             enddo
@@ -694,19 +782,57 @@ contains
       endif
     endif
 
+    if (is_master()) then
+      write(*,*) '[KA] (delz) is=',is
+      write(*,*) '[KA] (delz) ie=',ie
+      write(*,*) '[KA] (delz) js=',js
+      write(*,*) '[KA] (delz) je=',je
+      write(*,*) '[KA] (delz) is2=',is2
+      write(*,*) '[KA] (delz) ie2=',ie2
+      write(*,*) '[KA] (delz) js2=',js2
+      write(*,*) '[KA] (delz) je2=',je2
+      write(*,*) '[KA] (delz) shape=',SHAPE(delz)
+      write(*,*) '[KA] (delz) size=',SIZE(delz)
+!      write(*,*) '[KA] (delz) delz=',delz
+    endif
+
     if (calc_nonhydro) then
       ! Compute nonhydrostatic variables, if needed
       if (.not. hydrostatic) then
         do k=1,npz
+          do j=js2,je2
+            do i=is2,ie2
+              w(i,j,k) = 0.
+            enddo
+          enddo
           do j=js,je
             do i=is,ie
-              w(i,j,k) = 0.
-              delz(i,j,k) = gz(i,j,k) - gz(i,j,k+1)
+              if (is_master()) then
+                p_upper = gz(i,j,k) - gz(i,j,k+1)
+                write(*,*) '[KA] i=',i,'j=',j,'k=',k,'dz=',delz(i,j,k),'clc=',p_upper
+              endif
+!              delz(i,j,k) = gz(i,j,k) - gz(i,j,k+1)
+              delz(i,j,k) = gz(i,j,k+1) - gz(i,j,k)
             enddo
           enddo
         enddo
       endif
     endif
+
+    if (is_master()) then
+      write(*,*) '[KA] (delz) is=',is
+      write(*,*) '[KA] (delz) ie=',ie
+      write(*,*) '[KA] (delz) js=',js
+      write(*,*) '[KA] (delz) je=',je
+      write(*,*) '[KA] (delz) is2=',is2
+      write(*,*) '[KA] (delz) ie2=',ie2
+      write(*,*) '[KA] (delz) js2=',js2
+      write(*,*) '[KA] (delz) je2=',je2
+      write(*,*) '[KA] (delz) shape=',SHAPE(delz)
+      write(*,*) '[KA] (delz) size=',SIZE(delz)
+!      write(*,*) '[KA] (delz) delz=',delz
+    endif
+!    delz = 0.0
 
     nullify(grid)
     nullify(agrid)
@@ -792,7 +918,7 @@ contains
       exp_term = rfac + (z/z_p)**2
 
       if (exp_term < max_exp) then
-        vt = -fr5 + SQRT( fr5**2 - (1.5 * rfac * Tvrd) / &
+        vt = -fr5 + SIGN(1.0,c_lat) * SQRT( fr5**2 - (1.5 * rfac * Tvrd) / &
              ( 1. + 2.*Tvrd*z/(grav*z_p**2) - (p_0/dp)*EXP(exp_term) ) )
       else
         vt = 0.

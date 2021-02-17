@@ -84,13 +84,41 @@ module test_init_mod
   use init_hydro_mod,     only: p_var
   use mpp_parameter_mod,  only: DGRID_NE
 
-  use multi_vtx_mod,      only: intern_init_multi_vtx, init_multi_vtx, ic_multi_vtx
+  use ideal_mtn_mod,      only: read_ideal_mtn, intern_init_ideal_mtn, init_ideal_mtn, ic_ideal_mtn
+  use multi_vtx_mod,      only: read_multi_vtx, intern_init_multi_vtx, init_multi_vtx, ic_multi_vtx
 
   implicit none
   private
-  public :: intern_init_test, init_test, ic_test
+  public :: read_test_nml, intern_init_test, init_test, ic_test
 
 contains
+
+  !-------------------------------------------------------------------------------
+  !>@brief intern_init_test directs a case's module to read an internal namelist.
+  subroutine read_test_nml(fname)
+    implicit none
+    character(*), intent(in) :: fname
+    ! integer :: ierr
+    ! rewind(f_unit)
+
+    select case(selected_case)
+      ! case(case_list%DIV_CONS)
+      ! case(case_list%NL_DEFORM)
+      ! case(case_list%COS_BELL)
+      ! case(case_list%ZONAL)
+      ! case(case_list%ZONAL_MTN)
+      ! case(case_list%NR_POT)
+      ! case(case_list%ROSSBY_4)
+      ! case(case_list%BT_INSTAB)
+      ! case(case_list%SOLITON)
+      ! case(case_list%POLAR_VTX)
+      case(CASE_IDEAL_MTN)
+        call read_ideal_mtn(fname)
+      case(CASE_MULTI_VTX)
+        call read_multi_vtx(fname)
+    end select
+
+  end subroutine read_test_nml
 
   !-------------------------------------------------------------------------------
   !>@brief intern_init_test directs a case's module to read an internal namelist.
@@ -110,7 +138,8 @@ contains
       ! case(case_list%BT_INSTAB)
       ! case(case_list%SOLITON)
       ! case(case_list%POLAR_VTX)
-
+      case(CASE_IDEAL_MTN)
+        ierr = intern_init_ideal_mtn()
       case(CASE_MULTI_VTX)
         ierr = intern_init_multi_vtx()
     end select
@@ -137,7 +166,8 @@ contains
       ! case(case_list%BT_INSTAB)
       ! case(case_list%SOLITON)
       ! case(case_list%POLAR_VTX)
-
+      case(CASE_IDEAL_MTN)
+        ierr = intern_init_ideal_mtn()
       case(CASE_MULTI_VTX)
         ierr = init_multi_vtx(f_unit)
     end select
@@ -159,7 +189,8 @@ contains
     real, intent(INOUT) ::    w(isd:  ,jsd:  ,1:)
     real, intent(INOUT) ::   pt(isd:ied  ,jsd:jed  ,npz)
     real, intent(INOUT) :: delp(isd:ied  ,jsd:jed  ,npz)
-    real, intent(INOUT) :: delz(isd:,jsd:,1:)
+!    real, intent(INOUT) :: delz(isd:,jsd:,1:)
+    real, intent(INOUT) :: delz(is:,js:,1:)
     real, intent(INOUT) ::    q(isd:ied  ,jsd:jed  ,npz, ncnst)
 
     real, intent(INOUT) ::   pk(is:ie    ,js:je    ,npz+1)
@@ -236,7 +267,9 @@ contains
       ! case(CASE_BT_INSTAB)
       ! case(CASE_SOLITON)
       ! case(CASE_POLAR_VTX)
-
+      case(CASE_IDEAL_MTN)
+        call ic_ideal_mtn(u, v, w, pt, delp, delz, q, &
+                                phis, ps, ak, bk, gridstruct, domain)
       case(CASE_MULTI_VTX)
         call ic_multi_vtx(u, v, w, pt, delp, delz, q, &
                                 pk, peln, pe, pkz, phis, ps, &
